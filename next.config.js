@@ -1,4 +1,5 @@
-const withPWA = require('next-pwa')({
+const withPWAInit = require('@ducanh2912/next-pwa');
+const withPWA = (withPWAInit.default || withPWAInit)({
   dest: 'public',
   register: true,
   skipWaiting: true,
@@ -9,6 +10,7 @@ const withPWA = require('next-pwa')({
 const nextConfig = withPWA({
   reactStrictMode: true,
   reactCompiler: true,
+  turbopack: {},
 });
 
 module.exports = nextConfig;
