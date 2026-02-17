@@ -23,8 +23,29 @@ export default function LoginPage() {
     setDebug(result);
     if (result.error) {
       setError(result.error.message || "Login failed");
-    } else {
-      router.push("/admin");
+      return;
+    }
+
+    // verify session persisted before navigation
+    try {
+      // small retry loop to allow client persistence to complete
+      let persisted = false;
+      for (let i = 0; i < 6; i++) {
+        const { data } = await import('@/config/supabaseClient').then(m => m.supabase.auth.getUser());
+        if (data?.user) {
+          persisted = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 200));
+      }
+      if (!persisted) {
+        setError('Login succeeded but session not persisted. Please try again.');
+        return;
+      }
+      window.location.href = '/admin';
+    } catch (e) {
+      console.error('post-login check failed', e);
+      setError('Login succeeded but post-login check failed.');
     }
   }
 
