@@ -5,20 +5,8 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const result = await supabase.auth.signInWithPassword({ email, password });
-  // Ensure session is persisted client-side — some environments may need explicit set
-  if (result.data?.session) {
-    try {
-      await supabase.auth.setSession({
-        access_token: result.data.session.access_token,
-        refresh_token: result.data.session.refresh_token,
-      });
-    } catch (e) {
-      // ignore — setSession may throw in non-browser contexts
-      console.warn('setSession failed', e);
-    }
-  }
-  return result;
+  // createBrowserClient handles persistence automatically — no setSession needed
+  return supabase.auth.signInWithPassword({ email, password });
 }
 
 export async function signOut() {
