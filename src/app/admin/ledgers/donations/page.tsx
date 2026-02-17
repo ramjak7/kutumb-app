@@ -1,3 +1,4 @@
+"use client";
 import React from 'react';
 // TODO: Replace with Supabase data fetch
 const donations = [
@@ -21,7 +22,7 @@ export default function DonationLedgerPage() {
   }
 
   // Download PDF (stub, to be implemented with actual receipt PDF logic)
-  function downloadPDF(donation) {
+  function downloadPDF(donation: { id: string; name: string; amount: number; date: string; verified: boolean; hash: string }) {
     // TODO: Integrate with receipt PDF generation/storage
     alert('Download PDF for receipt ' + donation.id);
   }
