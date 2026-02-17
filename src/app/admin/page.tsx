@@ -1,20 +1,22 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getUser } from "@/modules/admin/authService";
+import { requireAdmin } from "@/modules/admin/adminGuard";
 
 export default function AdminDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [admin, setAdmin] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
-      const user = await getUser();
-      if (!user || user.user_metadata?.role !== "admin") {
+      try {
+        const adminUser = await requireAdmin();
+        setAdmin(adminUser);
+      } catch (err: any) {
+        setError(err.message || "Not authorized");
         router.replace("/login");
-      } else {
-        setIsAdmin(true);
       }
       setLoading(false);
     }
@@ -24,7 +26,10 @@ export default function AdminDashboardHome() {
   if (loading) {
     return <div className="p-8 text-orange-700">Loading...</div>;
   }
-  if (!isAdmin) {
+  if (error) {
+    return <div className="p-8 text-red-600">{error}</div>;
+  }
+  if (!admin) {
     return null;
   }
   return (
