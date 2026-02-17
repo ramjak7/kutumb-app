@@ -18,6 +18,7 @@ export default function AdminDashboardHome() {
       // 1) check Supabase auth session
       const authUser = await getUser();
       setAuthDebug({ present: !!authUser, id: authUser?.id, email: authUser?.email });
+      console.log('admin page: authUser', authUser);
       if (!authUser) {
         setError('Not authenticated (no auth session)');
         setLoading(false);
@@ -32,6 +33,7 @@ export default function AdminDashboardHome() {
         .eq('id', authUser.id)
         .single();
       setDbDebug({ data: data ? { id: data.id, role: data.role, email: data.email } : null, error: error?.message });
+      console.log('admin page: users table lookup', { data, error });
 
       if (error || !data) {
         setError('User row missing or RLS denied: ' + (error?.message || 'no row'));
@@ -56,16 +58,37 @@ export default function AdminDashboardHome() {
   }, [router]);
 
   if (loading) {
-    return <div className="p-8 text-orange-700">Loading...</div>;
+    return (
+      <div className="p-8 text-orange-700">
+        Loading...
+        <pre className="mt-4 text-xs bg-orange-50 p-2 rounded">authDebug: {JSON.stringify(authDebug)}</pre>
+        <pre className="mt-2 text-xs bg-orange-50 p-2 rounded">dbDebug: {JSON.stringify(dbDebug)}</pre>
+      </div>
+    );
   }
   if (error) {
-    return <div className="p-8 text-red-600">{error}</div>;
+    return (
+      <div className="p-8">
+        <div className="text-red-600 mb-4">{error}</div>
+        <div className="bg-orange-50 p-4 rounded">
+          <strong className="text-sm">authDebug</strong>
+          <pre className="text-xs mt-2 p-2 bg-white rounded border">{JSON.stringify(authDebug, null, 2)}</pre>
+          <strong className="text-sm mt-4 block">dbDebug</strong>
+          <pre className="text-xs mt-2 p-2 bg-white rounded border">{JSON.stringify(dbDebug, null, 2)}</pre>
+        </div>
+      </div>
+    );
   }
   if (!admin) {
     return null;
   }
   return (
     <div>
+      <div className="mb-4 p-3 bg-orange-50 rounded border">
+        <strong className="block">Debug</strong>
+        <div className="text-xs mt-2">auth: {authDebug?.email} ({authDebug?.id})</div>
+        <div className="text-xs">db: {admin?.email} — role: {admin?.role}</div>
+      </div>
       <h1 className="text-3xl font-bold text-orange-700 mb-4">Welcome, Admin</h1>
       {/* TODO: Add stats widgets for donations, expenses, receipts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
