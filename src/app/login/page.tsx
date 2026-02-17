@@ -11,15 +11,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [debug, setDebug] = useState<any>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await signInWithEmail(email, password);
+    setDebug(null);
+    const result = await signInWithEmail(email, password);
     setLoading(false);
-    if (error) {
-      setError(error.message || "Login failed");
+    setDebug(result);
+    if (result.error) {
+      setError(result.error.message || "Login failed");
     } else {
       router.push("/admin");
     }
@@ -60,6 +63,11 @@ export default function LoginPage() {
           {loading ? t("actions.sending") || "Logging in..." : t("actions.send") || "Login"}
         </button>
         {error && <p className="text-red-600 mt-2">{error}</p>}
+        {debug && (
+          <pre className="bg-orange-50 text-xs text-gray-700 mt-4 p-2 rounded overflow-x-auto">
+            {JSON.stringify(debug, null, 2)}
+          </pre>
+        )}
       </form>
     </main>
   );
