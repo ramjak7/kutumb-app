@@ -2,22 +2,54 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireAdmin } from "@/modules/admin/adminGuard";
+import { getUser } from '@/modules/admin/authService';
+import { supabase } from '@/config/supabaseClient';
 
 export default function AdminDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [admin, setAdmin] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authDebug, setAuthDebug] = useState<any>(null);
+  const [dbDebug, setDbDebug] = useState<any>(null);
 
   useEffect(() => {
     async function checkAuth() {
-      try {
-        const adminUser = await requireAdmin();
-        setAdmin(adminUser);
-      } catch (err: any) {
-        setError(err.message || "Not authorized");
-        router.replace("/login");
+      // 1) check Supabase auth session
+      const authUser = await getUser();
+      setAuthDebug({ present: !!authUser, id: authUser?.id, email: authUser?.email });
+      if (!authUser) {
+        setError('Not authenticated (no auth session)');
+        setLoading(false);
+        router.replace('/login');
+        return;
       }
+
+      // 2) query users table directly to diagnose RLS / data issues
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, role, email, name, whatsapp_number')
+        .eq('id', authUser.id)
+        .single();
+      setDbDebug({ data: data ? { id: data.id, role: data.role, email: data.email } : null, error: error?.message });
+
+      if (error || !data) {
+        setError('User row missing or RLS denied: ' + (error?.message || 'no row'));
+        setLoading(false);
+        // keep on the page so debug info is visible, then redirect back to login
+        setTimeout(() => router.replace('/login'), 1200);
+        return;
+      }
+
+      if (data.role !== 'admin') {
+        setError('Not authorized (role != admin)');
+        setLoading(false);
+        setTimeout(() => router.replace('/login'), 1200);
+        return;
+      }
+
+      // success
+      setAdmin(data);
       setLoading(false);
     }
     checkAuth();

@@ -24,8 +24,7 @@ export default function LoginPage() {
     if (result.error) {
       setError(result.error.message || "Login failed");
     } else {
-      // Force full reload to ensure session is picked up
-      window.location.href = "/admin";
+      router.push("/admin");
     }
   }
 
