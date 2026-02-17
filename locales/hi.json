@@ -28,7 +28,7 @@
     "number": "रसीद संख्या"
   },
   "admin": {
-    "dashboard": "प्रशासन डैशबोर्ड",
+    "dashboard": "व्यवस्थापक डैशबोर्ड",
     "ledgers": "लेजर",
     "receipts": "रसीदें",
     "content": "सामग्री",

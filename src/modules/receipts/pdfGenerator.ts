@@ -1,4 +1,5 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+// src/modules/receipts/pdfGenerator.ts
+import { PDFDocument, rgb, StandardFonts, RGB } from 'pdf-lib';
 import QRCode from 'qrcode';
 
 export interface ReceiptData {
@@ -7,123 +8,130 @@ export interface ReceiptData {
   donorName: string;
   amount: number;
   date: string;
+  paymentMode?: string;
+  transactionNumber?: string;
+  donorPhone?: string;
+  donorEmail?: string;
+  donorAddress?: string;
+  donorPan?: string;
   qrUrl: string;
   branding?: {
     logoUrl?: string;
     footer?: string;
     themeColor?: string;
   };
-  bilingual: {
-    en: Record<string, string>;
-    hi: Record<string, string>;
-  };
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function hexToRgb(hex: string): RGB {
+  const clean = hex.replace('#', '');
+  return rgb(
+    parseInt(clean.substring(0, 2), 16) / 255,
+    parseInt(clean.substring(2, 4), 16) / 255,
+    parseInt(clean.substring(4, 6), 16) / 255,
+  );
+}
+
+const ORANGE = rgb(0.91, 0.42, 0.09);
+const DARK   = rgb(0.15, 0.15, 0.15);
+const MUTED  = rgb(0.45, 0.45, 0.45);
+const LIGHT  = rgb(0.96, 0.96, 0.96);
+const WHITE  = rgb(1, 1, 1);
+
+// ─── Main Generator ───────────────────────────────────────────────────────────
+
 export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([420, 595]); // A5 size
+  const pdfDoc  = await PDFDocument.create();
+  const page    = pdfDoc.addPage([595, 420]); // A5 landscape
   const { width, height } = page.getSize();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  // Branding
-  if (data.branding?.logoUrl) {
-    // TODO: Fetch and embed logo image
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const accent = data.branding?.themeColor ? hexToRgb(data.branding.themeColor) : ORANGE;
+
+  // ── Background header band ────────────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: accent });
+
+  // ── Festival name ─────────────────────────────────────────────────────────
+  page.drawText(data.festivalName.toUpperCase(), {
+    x: 30, y: height - 48,
+    size: 18, font: fontBold, color: WHITE,
+  });
+
+  // ── RECEIPT label (top right) ─────────────────────────────────────────────
+  page.drawText('RECEIPT / रसीद', {
+    x: width - 180, y: height - 38,
+    size: 11, font: fontBold, color: WHITE,
+  });
+  page.drawText(`No. ${data.receiptNumber}`, {
+    x: width - 180, y: height - 56,
+    size: 10, font: fontRegular, color: WHITE,
+  });
+
+  // ── Left column: donor details ────────────────────────────────────────────
+  let y = height - 105;
+  const col1 = 30;
+  const col2 = 180;
+  const lineH = 22;
+
+  function row(label: string, value: string, bold = false) {
+    if (!value) return;
+    page.drawText(label, { x: col1, y, size: 9, font: fontRegular, color: MUTED });
+    page.drawText(value, { x: col2, y, size: 10,
+      font: bold ? fontBold : fontRegular, color: DARK });
+    y -= lineH;
   }
 
-  // Title
-  page.drawText(data.festivalName, {
-    x: 40,
-    y: height - 60,
-    size: 20,
-    font,
-    color: rgb(0.95, 0.5, 0.15),
+  row('Donor Name / दाता का नाम',  data.donorName, true);
+  row('Amount / राशि',             `₹${Number(data.amount).toLocaleString('en-IN')}`, true);
+  row('Date / तारीख',              data.date);
+  row('Payment Mode / भुगतान विधि', data.paymentMode ?? '');
+  row('Transaction # / लेनदेन #',  data.transactionNumber ?? '');
+  row('Phone / फ़ोन',              data.donorPhone ?? '');
+  row('Email / ईमेल',             data.donorEmail ?? '');
+  row('PAN',                       data.donorPan ?? '');
+  row('Address / पता',            data.donorAddress ?? '');
+
+  // ── Divider ───────────────────────────────────────────────────────────────
+  page.drawLine({
+    start: { x: 30, y: y + 8 },
+    end:   { x: width - 30, y: y + 8 },
+    thickness: 0.5,
+    color: LIGHT,
   });
 
-  // Receipt Number
-  page.drawText(`${data.bilingual.en['receipt.number']}: ${data.receiptNumber}`, {
-    x: 40,
-    y: height - 90,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
+  // ── QR Code (right column) ────────────────────────────────────────────────
+  const qrDataUrl   = await QRCode.toDataURL(data.qrUrl, { width: 120, margin: 1 });
+  const qrBytes     = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+  const qrImage     = await pdfDoc.embedPng(qrBytes);
+  const qrSize      = 110;
+  const qrX         = width - qrSize - 30;
+  const qrY         = 60;
+
+  // QR background card
+  page.drawRectangle({
+    x: qrX - 8, y: qrY - 8,
+    width: qrSize + 16, height: qrSize + 30,
+    color: LIGHT,
+    //borderRadius: 4,
   });
-  page.drawText(`${data.bilingual.hi['receipt.number']}: ${data.receiptNumber}`, {
-    x: 240,
-    y: height - 90,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
+  page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+  page.drawText('Scan to verify', {
+    x: qrX - 2, y: qrY - 4,
+    size: 7, font: fontRegular, color: MUTED,
   });
 
-  // Donor Details
-  page.drawText(`${data.bilingual.en['donor.name']}: ${data.donorName}`, {
-    x: 40,
-    y: height - 120,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
-  });
-  page.drawText(`${data.bilingual.hi['donor.name']}: ${data.donorName}`, {
-    x: 240,
-    y: height - 120,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
+  // ── Footer ────────────────────────────────────────────────────────────────
+  const footerText = data.branding?.footer ?? 'This is a computer-generated receipt.';
+  page.drawText(footerText, {
+    x: 30, y: 18,
+    size: 8, font: fontRegular, color: MUTED,
   });
 
-  // Amount
-  page.drawText(`${data.bilingual.en['donation.amount']}: ₹${data.amount}`, {
-    x: 40,
-    y: height - 150,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
-  });
-  page.drawText(`${data.bilingual.hi['donation.amount']}: ₹${data.amount}`, {
-    x: 240,
-    y: height - 150,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
-  });
+  // ── Accent bottom strip ───────────────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: 0, width, height: 6, color: accent });
 
-  // Date
-  page.drawText(`${data.bilingual.en['donation.date']}: ${data.date}`, {
-    x: 40,
-    y: height - 180,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
-  });
-  page.drawText(`${data.bilingual.hi['donation.date']}: ${data.date}`, {
-    x: 240,
-    y: height - 180,
-    size: 12,
-    font,
-    color: rgb(0.2, 0.2, 0.2),
-  });
-
-  // QR Code
-  const qrDataUrl = await QRCode.toDataURL(data.qrUrl, { width: 100 });
-  const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-  const qrImage = await pdfDoc.embedPng(qrImageBytes);
-  page.drawImage(qrImage, {
-    x: width - 120,
-    y: 40,
-    width: 80,
-    height: 80,
-  });
-
-  // Footer
-  if (data.branding?.footer) {
-    page.drawText(data.branding.footer, {
-      x: 40,
-      y: 30,
-      size: 10,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
-    });
-  }
-
-  return await pdfDoc.save();
+  return pdfDoc.save();
 }

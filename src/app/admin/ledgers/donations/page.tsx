@@ -1,77 +1,242 @@
 "use client";
-import React from 'react';
-// TODO: Replace with Supabase data fetch
-const donations = [
-  { id: '1', name: 'Amit Sharma', amount: 5000, date: '2026-02-10', verified: true, hash: 'abc123' },
-  { id: '2', name: 'Priya Singh', amount: 2100, date: '2026-02-11', verified: false, hash: 'def456' },
-];
+// src/app/admin/ledgers/donations/page.tsx
+import React, { useEffect, useState, useCallback } from 'react';
+import { getDonations, type Donation } from '@/modules/ledgers/ledgerService';
+
+type SortKey = 'created_at' | 'amount' | 'donor_name';
 
 export default function DonationLedgerPage() {
-  // Export CSV
-  function exportCSV() {
-    const header = ['Donor', 'Amount', 'Date', 'Verified', 'Hash'];
-    const rows = donations.map(d => [d.name, d.amount, d.date, d.verified ? 'Yes' : 'No', d.hash]);
-    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'donation-ledger.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const [donations, setDonations]   = useState<Donation[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [sortKey, setSortKey]       = useState<SortKey>('created_at');
+  const [sortAsc, setSortAsc]       = useState(false);
+  const [search, setSearch]         = useState('');
+  const [exporting, setExporting]   = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchDonations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getDonations();
+      setDonations(data);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchDonations(); }, [fetchDonations]);
+
+  // ── Sort & filter ──────────────────────────────────────────────────────────
+  const filtered = donations
+    .filter(d => {
+      const q = search.toLowerCase();
+      return (
+        (d.donor_name ?? '').toLowerCase().includes(q) ||
+        (d.donor_email ?? '').toLowerCase().includes(q) ||
+        (d.donor_pan ?? '').toLowerCase().includes(q) ||
+        String(d.amount).includes(q)
+      );
+    })
+    .sort((a, b) => {
+      let av: string | number = a[sortKey] ?? '';
+      let bv: string | number = b[sortKey] ?? '';
+      if (sortKey === 'amount') { av = Number(av); bv = Number(bv); }
+      return sortAsc
+        ? av < bv ? -1 : av > bv ? 1 : 0
+        : av > bv ? -1 : av < bv ? 1 : 0;
+    });
+
+  const total = filtered.reduce((sum, d) => sum + Number(d.amount), 0);
+
+  // ── CSV export via API (server-side, auth-safe) ────────────────────────────
+  async function exportCSV() {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export/donations');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `donations-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('CSV export failed: ' + (e as Error).message);
+    } finally {
+      setExporting(false);
+    }
   }
 
-  // Download PDF (stub, to be implemented with actual receipt PDF logic)
-  function downloadPDF(donation: { id: string; name: string; amount: number; date: string; verified: boolean; hash: string }) {
-    // TODO: Integrate with receipt PDF generation/storage
-    alert('Download PDF for receipt ' + donation.id);
+  // ── Receipt PDF download ───────────────────────────────────────────────────
+  async function downloadReceipt(donationId: string) {
+    // Find associated receipt for this donation via API
+    setDownloading(donationId);
+    try {
+      // We fetch the receipt list to match donation → receipt
+      const res = await fetch(`/api/receipts/find?donationId=${donationId}`);
+      if (!res.ok) {
+        alert('No receipt found for this donation. Generate one first.');
+        return;
+      }
+      const { receiptId } = await res.json();
+      const pdfRes = await fetch(`/api/receipts/download/${receiptId}`);
+      if (!pdfRes.ok) throw new Error('Download failed');
+      const blob = await pdfRes.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `receipt-${donationId.slice(0,8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Download failed: ' + (e as Error).message);
+    } finally {
+      setDownloading(null);
+    }
   }
+
+  // ── Sort toggle ────────────────────────────────────────────────────────────
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortAsc(p => !p);
+    else { setSortKey(key); setSortAsc(false); }
+  }
+
+  function SortIcon({ k }: { k: SortKey }) {
+    if (sortKey !== k) return <span className="ml-1 text-orange-300">↕</span>;
+    return <span className="ml-1">{sortAsc ? '↑' : '↓'}</span>;
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (loading) return <div className="p-8 text-orange-700 animate-pulse">Loading donations…</div>;
+  if (error)   return (
+    <div className="p-8">
+      <p className="text-red-600 mb-3">{error}</p>
+      <button onClick={fetchDonations} className="px-4 py-2 bg-orange-500 text-white rounded">Retry</button>
+    </div>
+  );
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-orange-700 mb-4">Donation Ledger</h1>
-      <button className="mb-4 px-4 py-2 bg-orange-500 text-white rounded shadow hover:bg-orange-600 transition" onClick={exportCSV}>
-        Export CSV
-      </button>
-      <div className="bg-white rounded shadow p-6 overflow-x-auto">
-        <table className="min-w-full text-left">
-          <thead>
-            <tr>
-              <th className="py-2 px-4 text-orange-600">Donor</th>
-              <th className="py-2 px-4 text-orange-600">Amount</th>
-              <th className="py-2 px-4 text-orange-600">Date</th>
-              <th className="py-2 px-4 text-orange-600">Verified</th>
-              <th className="py-2 px-4 text-orange-600">Hash</th>
-              <th className="py-2 px-4 text-orange-600">Actions</th>
-              <th className="py-2 px-4 text-orange-600">Receipt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {donations.map((donation) => (
-              <tr key={donation.id} className="border-b last:border-b-0">
-                <td className="py-2 px-4">{donation.name}</td>
-                <td className="py-2 px-4">₹{donation.amount}</td>
-                <td className="py-2 px-4">{donation.date}</td>
-                <td className="py-2 px-4">{donation.verified ? 'Yes' : 'No'}</td>
-                <td className="py-2 px-4 font-mono text-xs">{donation.hash}</td>
-                <td className="py-2 px-4">
-                  {donation.verified ? (
-                    <span className="text-green-600 font-semibold">Immutable</span>
-                  ) : (
-                    <button className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition">Verify</button>
-                  )}
-                </td>
-                <td className="py-2 px-4">
-                  <button className="px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition" onClick={() => downloadPDF(donation)}>
-                    Download PDF
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-orange-700">Donation Ledger</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {filtered.length} record{filtered.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
+            Total: <span className="font-semibold text-orange-700">
+              ₹{total.toLocaleString('en-IN')}
+            </span>
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <a
+            href="/admin/receipts/new"
+            className="px-4 py-2 bg-orange-600 text-white rounded shadow hover:bg-orange-700 transition text-sm font-medium"
+          >
+            + New Receipt
+          </a>
+          <button
+            onClick={exportCSV}
+            disabled={exporting}
+            className="px-4 py-2 bg-white border border-orange-300 text-orange-700 rounded shadow hover:bg-orange-50 transition text-sm font-medium disabled:opacity-50"
+          >
+            {exporting ? 'Exporting…' : '⬇ Export CSV'}
+          </button>
+        </div>
       </div>
-      <p className="text-xs text-gray-500 mt-2">* All records are append-only and hash-protected. No edits or deletes allowed.</p>
+
+      {/* ── Search ── */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search by name, email, PAN, amount…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full max-w-sm border border-orange-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+        />
+      </div>
+
+      {/* ── Table ── */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded shadow p-10 text-center text-gray-400">
+          No donations found.
+        </div>
+      ) : (
+        <div className="bg-white rounded shadow overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-orange-50 border-b border-orange-100">
+              <tr>
+                <th className="py-3 px-4 text-orange-600 font-semibold cursor-pointer select-none" onClick={() => toggleSort('created_at')}>
+                  Date <SortIcon k="created_at" />
+                </th>
+                <th className="py-3 px-4 text-orange-600 font-semibold cursor-pointer select-none" onClick={() => toggleSort('donor_name')}>
+                  Donor <SortIcon k="donor_name" />
+                </th>
+                <th className="py-3 px-4 text-orange-600 font-semibold cursor-pointer select-none" onClick={() => toggleSort('amount')}>
+                  Amount <SortIcon k="amount" />
+                </th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Mode</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">PAN</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Verified</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Hash</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Receipt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((d, i) => (
+                <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-orange-50/30'}>
+                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">
+                    {new Date(d.created_at).toLocaleDateString('en-IN')}
+                  </td>
+                  <td className="py-2 px-4">
+                    <div className="font-medium text-gray-800">{d.donor_name ?? '—'}</div>
+                    {d.donor_email && (
+                      <div className="text-xs text-gray-400">{d.donor_email}</div>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 font-semibold text-orange-700 whitespace-nowrap">
+                    ₹{Number(d.amount).toLocaleString('en-IN')}
+                  </td>
+                  <td className="py-2 px-4 text-gray-600 capitalize">
+                    {d.payment_mode ?? '—'}
+                  </td>
+                  <td className="py-2 px-4 font-mono text-xs text-gray-500">
+                    {d.donor_pan ?? '—'}
+                  </td>
+                  <td className="py-2 px-4">
+                    {d.verified
+                      ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Verified</span>
+                      : <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pending</span>
+                    }
+                  </td>
+                  <td className="py-2 px-4 font-mono text-xs text-gray-400 max-w-[80px] truncate" title={d.hash}>
+                    {d.hash.slice(0, 10)}…
+                  </td>
+                  <td className="py-2 px-4">
+                    <button
+                      onClick={() => downloadReceipt(d.id)}
+                      disabled={downloading === d.id}
+                      className="px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition text-xs font-medium disabled:opacity-50"
+                    >
+                      {downloading === d.id ? '…' : '⬇ PDF'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 mt-3">
+        * All records are append-only and hash-protected. No edits or deletes are permitted.
+      </p>
     </div>
   );
 }
