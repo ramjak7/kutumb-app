@@ -1,6 +1,32 @@
-import React from 'react';
+"use client";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getUser } from "@/modules/admin/authService";
 
 export default function AdminDashboardHome() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const user = await getUser();
+      if (!user || user.user_metadata?.role !== "admin") {
+        router.replace("/login");
+      } else {
+        setIsAdmin(true);
+      }
+      setLoading(false);
+    }
+    checkAuth();
+  }, [router]);
+
+  if (loading) {
+    return <div className="p-8 text-orange-700">Loading...</div>;
+  }
+  if (!isAdmin) {
+    return null;
+  }
   return (
     <div>
       <h1 className="text-3xl font-bold text-orange-700 mb-4">Welcome, Admin</h1>

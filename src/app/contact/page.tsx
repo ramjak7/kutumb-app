@@ -4,6 +4,40 @@ import { useLanguage } from '@/modules/language/LanguageProvider';
 
 export default function ContactPage() {
   const { t } = useLanguage();
+  const [status, setStatus] = React.useState<'idle' | 'sending' | 'success' | 'error'>("idle");
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("sending");
+    setError(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const name = formData.get("name") as string;
+    const message = formData.get("message") as string;
+    try {
+      // Send email
+      const emailRes = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, message }),
+      });
+      if (!emailRes.ok) throw new Error("Email send failed");
+      // Send WhatsApp
+      const waRes = await fetch("/api/messaging/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: "+919999999999", body: `Contact from ${name}: ${message}` }),
+      });
+      if (!waRes.ok) throw new Error("WhatsApp send failed");
+      setStatus("success");
+      form.reset();
+    } catch (err: any) {
+      setStatus("error");
+      setError(err.message || "Unknown error");
+    }
+  }
+
   return (
     <main className="max-w-xl mx-auto py-12 px-4">
       <h2 className="text-3xl font-bold text-orange-700 mb-6">{t('public.contact.heading')}</h2>
@@ -17,7 +51,7 @@ export default function ContactPage() {
           <li>WhatsApp: <a href="https://wa.me/919999999999" className="text-orange-600">+91-99999-99999</a></li>
         </ul>
       </div>
-      <form className="bg-orange-50 rounded shadow p-6 flex flex-col gap-4">
+      <form className="bg-orange-50 rounded shadow p-6 flex flex-col gap-4" onSubmit={handleSubmit}>
         <label className="font-medium text-gray-700">
           {t('donor.name')}
           <input type="text" name="name" className="mt-1 block w-full border border-orange-200 rounded px-3 py-2" required />
@@ -27,9 +61,15 @@ export default function ContactPage() {
           Message
           <textarea name="message" rows={4} className="mt-1 block w-full border border-orange-200 rounded px-3 py-2" required />
         </label>
-        <button type="submit" className="mt-4 px-6 py-2 bg-orange-500 text-white rounded shadow hover:bg-orange-600 transition">
-          {t('actions.send')}
+        <button type="submit" className="mt-4 px-6 py-2 bg-orange-500 text-white rounded shadow hover:bg-orange-600 transition" disabled={status === 'sending'}>
+          {status === 'sending' ? t('actions.sending') || 'Sending...' : t('actions.send')}
         </button>
+        {status === 'success' && (
+          <p className="text-green-600 mt-2">{t('contact.success') || 'Message sent successfully!'}</p>
+        )}
+        {status === 'error' && (
+          <p className="text-red-600 mt-2">{t('contact.error') || 'Failed to send message.'} {error && <span>({error})</span>}</p>
+        )}
       </form>
     </main>
   );
