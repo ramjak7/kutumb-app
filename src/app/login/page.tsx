@@ -17,14 +17,15 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setDebug(null);
+
     const result = await signInWithEmail(email, password);
     setLoading(false);
-    setDebug(result);
+
     if (result.error) {
-      setError(result.error.message || "Login failed");
-      return;
+        setError(result.error.message || 'Login failed');
+        return;
     }
+
     window.location.href = '/admin';
   }
 

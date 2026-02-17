@@ -1,16 +1,40 @@
-import { requireAdmin } from '@/modules/admin/adminGuard';
+import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(req: NextRequest) {
-  if (req.nextUrl.pathname.startsWith('/admin')) {
-    try {
-      await requireAdmin();
-      return NextResponse.next();
-    } catch {
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
+  if (!req.nextUrl.pathname.startsWith('/admin')) {
+    return NextResponse.next();
   }
-  return NextResponse.next();
+
+  let response = NextResponse.next({ request: req });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            req.cookies.set(name, value);
+            response = NextResponse.next({ request: req });
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  // getUser() validates the JWT with Supabase — never use getSession() in middleware
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  return response;
 }
 
 export const config = {
