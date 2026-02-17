@@ -1,4 +1,3 @@
-// src/app/api/receipts/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import crypto from 'crypto';
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
     .from('donations')
     .insert({
       festival_id:        festivalId ?? null,
-      user_id:            user.id,
+      user_id:            user.id as any,
       amount:             Number(amount),
       donor_name:         donorName,
       payment_mode:       paymentMode ?? null,
@@ -99,7 +98,7 @@ export async function POST(req: NextRequest) {
       pdf_url:        null,             // on-the-fly, no storage
       receipt_number: receiptNumber,
       qr_code:        qrPlaceholder,   // updated below
-      issued_by:      user.id,
+      issued_by:      user.id as any,
       hash:           receiptHash,
     })
     .select()
