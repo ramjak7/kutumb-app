@@ -1,0 +1,43 @@
+{
+  "public": {
+    "home": {
+      "tagline": "सभी पीढ़ियों के लिए एक सामुदायिक उत्सव"
+    },
+    "program": {
+      "heading": "कार्यक्रम अनुसूची"
+    },
+    "committee": {
+      "heading": "समिति"
+    },
+    "donation": {
+      "heading": "त्योहार के लिए दान करें"
+    },
+    "contact": {
+      "heading": "संपर्क करें"
+    }
+  },
+  "donor": {
+    "name": "नाम",
+    "email": "ईमेल"
+  },
+  "donation": {
+    "amount": "राशि (₹)",
+    "date": "तारीख"
+  },
+  "receipt": {
+    "number": "रसीद संख्या"
+  },
+  "admin": {
+    "dashboard": "प्रशासन डैशबोर्ड",
+    "ledgers": "लेजर",
+    "receipts": "रसीदें",
+    "content": "सामग्री",
+    "settings": "सेटिंग्स",
+    "audit": "ऑडिट लॉग"
+  },
+  "actions": {
+    "donate": "दान करें",
+    "viewProgram": "कार्यक्रम देखें",
+    "send": "भेजें"
+  }
+}

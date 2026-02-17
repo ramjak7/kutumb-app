@@ -1,0 +1,21 @@
+{
+  "name": "Kutumb Festival",
+  "short_name": "Kutumb",
+  "description": "Bilingual, audit-safe festival PWA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#F59E42",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

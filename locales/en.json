@@ -1,0 +1,43 @@
+{
+  "public": {
+    "home": {
+      "tagline": "A community festival for all generations"
+    },
+    "program": {
+      "heading": "Program Schedule"
+    },
+    "committee": {
+      "heading": "Festival Committee"
+    },
+    "donation": {
+      "heading": "Donate to the Festival"
+    },
+    "contact": {
+      "heading": "Contact Us"
+    }
+  },
+  "donor": {
+    "name": "Name",
+    "email": "Email"
+  },
+  "donation": {
+    "amount": "Amount (INR)",
+    "date": "Date"
+  },
+  "receipt": {
+    "number": "Receipt Number"
+  },
+  "admin": {
+    "dashboard": "Admin Dashboard",
+    "ledgers": "Ledgers",
+    "receipts": "Receipts",
+    "content": "Content",
+    "settings": "Settings",
+    "audit": "Audit Log"
+  },
+  "actions": {
+    "donate": "Donate",
+    "viewProgram": "View Program",
+    "send": "Send"
+  }
+}
