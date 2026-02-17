@@ -1,11 +1,21 @@
 "use client";
 import React from 'react';
 import { useLanguage } from '@/modules/language/LanguageProvider';
+import { getAdminWhatsAppNumber } from '@/modules/admin/getAdminWhatsAppNumber';
 
 export default function ContactPage() {
   const { t } = useLanguage();
   const [status, setStatus] = React.useState<'idle' | 'sending' | 'success' | 'error'>("idle");
   const [error, setError] = React.useState<string | null>(null);
+  const [whatsapp, setWhatsapp] = React.useState<string>("");
+
+  React.useEffect(() => {
+    async function fetchNumber() {
+      const { number } = await getAdminWhatsAppNumber();
+      setWhatsapp(number);
+    }
+    fetchNumber();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,13 +33,15 @@ export default function ContactPage() {
         body: JSON.stringify({ name, message }),
       });
       if (!emailRes.ok) throw new Error("Email send failed");
-      // Send WhatsApp
-      const waRes = await fetch("/api/messaging/whatsapp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "+919999999999", body: `Contact from ${name}: ${message}` }),
-      });
-      if (!waRes.ok) throw new Error("WhatsApp send failed");
+      // Send WhatsApp (only if number is set)
+      if (whatsapp) {
+        const waRes = await fetch("/api/messaging/whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: whatsapp, body: `Contact from ${name}: ${message}` }),
+        });
+        if (!waRes.ok) throw new Error("WhatsApp send failed");
+      }
       setStatus("success");
       form.reset();
     } catch (err: any) {
@@ -48,6 +60,9 @@ export default function ContactPage() {
         </p>
         <ul className="list-disc pl-6 text-gray-600 mb-4">
           <li>Email: <a href="mailto:info@kutumbfest.org" className="text-orange-600">info@kutumbfest.org</a></li>
+          {whatsapp && (
+            <li>WhatsApp: <a href={`https://wa.me/${whatsapp.replace(/[^\d]/g, "")}`} className="text-orange-600">{whatsapp}</a></li>
+          )}
           <li>WhatsApp: <a href="https://wa.me/919999999999" className="text-orange-600">+91-99999-99999</a></li>
         </ul>
       </div>
