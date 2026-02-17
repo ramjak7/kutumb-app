@@ -20,11 +20,11 @@ CREATE POLICY user_read_own ON users
 
 -- Policy: Only admins can insert donations/expenses/receipts
 CREATE POLICY admin_insert_donations ON donations
-  FOR INSERT USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+  FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
 CREATE POLICY admin_insert_expenses ON expenses
-  FOR INSERT USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+  FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
 CREATE POLICY admin_insert_receipts ON receipts
-  FOR INSERT USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+  FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
 
 -- Policy: Public can read public content, admins can read all
 CREATE POLICY public_read_content ON content_blocks
