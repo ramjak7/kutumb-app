@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/modules/language/LanguageProvider";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,24 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <LanguageProvider>
-          {children}
+          <header className="w-full bg-white/80 border-b border-orange-100 shadow-sm sticky top-0 z-20">
+            <nav className="max-w-4xl mx-auto flex items-center justify-between px-4 py-2">
+              <div className="flex items-center gap-6">
+                <a href="/" className="font-bold text-orange-700 text-xl hover:underline">Kutumb</a>
+                <a href="/program" className="text-orange-700 hover:underline">Program</a>
+                <a href="/committee" className="text-orange-700 hover:underline">Committee</a>
+                <a href="/donate" className="text-orange-700 hover:underline">Donate</a>
+                <a href="/contact" className="text-orange-700 hover:underline">Contact</a>
+              </div>
+              <div className="flex items-center gap-4">
+                <LanguageToggle />
+                <a href="/admin" className="text-orange-500 font-semibold border border-orange-200 rounded px-3 py-1 hover:bg-orange-50 transition">Admin</a>
+              </div>
+            </nav>
+          </header>
+          <main className="min-h-screen w-full bg-gradient-to-b from-orange-100 to-white">
+            {children}
+          </main>
         </LanguageProvider>
       </body>
     </html>
