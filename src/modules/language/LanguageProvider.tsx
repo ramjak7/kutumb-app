@@ -15,7 +15,13 @@ interface LanguageContextProps {
   t: (key: string) => string;
 }
 
-const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
+// 1. Initialize the context with a dummy 't' function instead of undefined
+// This prevents the "Attempted to call useLanguage on server" crash during static gen
+const LanguageContext = createContext<LanguageContextProps>({
+  lang: 'en',
+  setLang: () => {},
+  t: (key: string) => key, 
+});
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<SupportedLanguage>('en');
@@ -27,7 +33,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       value = value?.[k];
       if (value === undefined) return key;
     }
-    return value;
+    return typeof value === 'string' ? value : key;
   }
 
   return (
@@ -38,7 +44,5 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLanguage() {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error('useLanguage must be used within LanguageProvider');
-  return ctx;
+  return useContext(LanguageContext);
 }

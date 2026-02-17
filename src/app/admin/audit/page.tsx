@@ -1,5 +1,5 @@
-import React from 'react';
-// TODO: Replace with Supabase data fetch
+"use client";
+import { useLanguage } from '@/modules/language/LanguageProvider';
 const auditLogs = [
   {
     id: '1',
@@ -25,21 +25,23 @@ const auditLogs = [
   },
 ];
 
-export default function AuditLogPage() {
+function AuditLogTable() {
+  // If you need useLanguage, import and use it here
+  const { t } = useLanguage();
   return (
     <div>
-      <h1 className="text-2xl font-bold text-orange-700 mb-4">Audit Log</h1>
+      <h1 className="text-2xl font-bold text-orange-700 mb-4">{t('auditLogTitle') || 'Audit Log'}</h1>
       <div className="bg-white rounded shadow p-6 overflow-x-auto">
         <table className="min-w-full text-left">
           <thead>
             <tr>
-              <th className="py-2 px-4 text-orange-600">Timestamp</th>
-              <th className="py-2 px-4 text-orange-600">User</th>
-              <th className="py-2 px-4 text-orange-600">Action</th>
-              <th className="py-2 px-4 text-orange-600">Table</th>
-              <th className="py-2 px-4 text-orange-600">Record ID</th>
-              <th className="py-2 px-4 text-orange-600">Hash</th>
-              <th className="py-2 px-4 text-orange-600">Details</th>
+              <th className="py-2 px-4 text-orange-600">{t('timestamp') || 'Timestamp'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('user') || 'User'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('action') || 'Action'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('table') || 'Table'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('recordId') || 'Record ID'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('hash') || 'Hash'}</th>
+              <th className="py-2 px-4 text-orange-600">{t('details') || 'Details'}</th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +61,11 @@ export default function AuditLogPage() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-gray-500 mt-2">* All admin actions are logged with before/after snapshots and hashes.</p>
+      <p className="text-xs text-gray-500 mt-2">{t('auditNote') || '* All admin actions are logged with before/after snapshots and hashes.'}</p>
     </div>
   );
+}
+
+export default function AuditLogPage() {
+  return <AuditLogTable />;
 }
