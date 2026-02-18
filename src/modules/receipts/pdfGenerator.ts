@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, RGB } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
 
 export interface ReceiptData {
@@ -42,6 +43,7 @@ const WHITE  = rgb(1, 1, 1);
 
 export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array> {
   const pdfDoc  = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
   const page    = pdfDoc.addPage([595, 420]); // A5 landscape
   const { width, height } = page.getSize();
 
