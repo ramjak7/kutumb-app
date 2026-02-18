@@ -1,6 +1,8 @@
 // src/modules/receipts/pdfGenerator.ts
 import { PDFDocument, rgb, StandardFonts, RGB } from 'pdf-lib';
 import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -49,6 +51,11 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+  // ── Load Devanagari font for Hindi text ───────────────────────────────────────
+  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'aparajbi.ttf');
+  const fontBytes = fs.readFileSync(fontPath);
+  const hindiFont = await pdfDoc.embedFont(fontBytes);
+
   const accent = data.branding?.themeColor ? hexToRgb(data.branding.themeColor) : ORANGE;
 
   // ── Background header band ────────────────────────────────────────────────
@@ -60,39 +67,55 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
     size: 18, font: fontBold, color: WHITE,
   });
 
-  // ── RECEIPT label (top right) ─────────────────────────────────────────────
-  page.drawText('RECEIPT / रसीद', {
-    x: width - 180, y: height - 38,
+  // ── RECEIPT label (top right) - bilingual ─────────────────────────────────
+  page.drawText('RECEIPT', {
+    x: width - 180, y: height - 32,
     size: 11, font: fontBold, color: WHITE,
   });
+  page.drawText('रसीद', {
+    x: width - 180, y: height - 48,
+    size: 10, font: hindiFont, color: WHITE,
+  });
   page.drawText(`No. ${data.receiptNumber}`, {
-    x: width - 180, y: height - 56,
-    size: 10, font: fontRegular, color: WHITE,
+    x: width - 180, y: height - 64,
+    size: 9, font: fontRegular, color: WHITE,
   });
 
   // ── Left column: donor details ────────────────────────────────────────────
   let y = height - 105;
-  const col1 = 30;
-  const col2 = 180;
-  const lineH = 22;
+  const col1En = 30;
+  const col1Hi = 160;
+  const col2 = 290;
+  const lineH = 20;
 
-  function row(label: string, value: string, bold = false) {
+  function bilingualRow(labelEn: string, labelHi: string, value: string, bold = false) {
     if (!value) return;
-    page.drawText(label, { x: col1, y, size: 9, font: fontRegular, color: MUTED });
-    page.drawText(value, { x: col2, y, size: 10,
-      font: bold ? fontBold : fontRegular, color: DARK });
+    // English label
+    page.drawText(labelEn, { 
+      x: col1En, y, size: 9, font: fontRegular, color: MUTED 
+    });
+    // Hindi label
+    page.drawText(labelHi, { 
+      x: col1Hi, y, size: 9, font: hindiFont, color: MUTED 
+    });
+    // Value
+    page.drawText(value, { 
+      x: col2, y, size: 10,
+      font: bold ? fontBold : fontRegular, 
+      color: DARK 
+    });
     y -= lineH;
   }
 
-  row('Donor Name / दाता का नाम',  data.donorName, true);
-  row('Amount / राशि',             `₹${Number(data.amount).toLocaleString('en-IN')}`, true);
-  row('Date / तारीख',              data.date);
-  row('Payment Mode / भुगतान विधि', data.paymentMode ?? '');
-  row('Transaction # / लेनदेन #',  data.transactionNumber ?? '');
-  row('Phone / फ़ोन',              data.donorPhone ?? '');
-  row('Email / ईमेल',             data.donorEmail ?? '');
-  row('PAN',                       data.donorPan ?? '');
-  row('Address / पता',            data.donorAddress ?? '');
+  bilingualRow('Donor Name', 'दाता का नाम', data.donorName, true);
+  bilingualRow('Amount', 'राशि', `₹${Number(data.amount).toLocaleString('en-IN')}`, true);
+  bilingualRow('Date', 'तारीख', data.date);
+  bilingualRow('Payment Mode', 'भुगतान विधि', data.paymentMode ?? '');
+  bilingualRow('Transaction #', 'लेनदेन #', data.transactionNumber ?? '');
+  bilingualRow('Phone', 'फ़ोन', data.donorPhone ?? '');
+  bilingualRow('Email', 'ईमेल', data.donorEmail ?? '');
+  bilingualRow('PAN', 'पैन', data.donorPan ?? '');
+  bilingualRow('Address', 'पता', data.donorAddress ?? '');
 
   // ── Divider ───────────────────────────────────────────────────────────────
   page.drawLine({
@@ -115,11 +138,10 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
     x: qrX - 8, y: qrY - 8,
     width: qrSize + 16, height: qrSize + 30,
     color: LIGHT,
-    //borderRadius: 4,
   });
   page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
   page.drawText('Scan to verify', {
-    x: qrX - 2, y: qrY - 4,
+    x: qrX + 10, y: qrY - 4,
     size: 7, font: fontRegular, color: MUTED,
   });
 
