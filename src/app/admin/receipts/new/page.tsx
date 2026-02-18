@@ -128,7 +128,7 @@ export default function NewReceiptPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Donor Name / दाता का नाम <span className="text-red-500">*</span>
+              Donor Name / दाता का नाम (श्री) <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
