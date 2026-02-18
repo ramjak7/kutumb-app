@@ -1,8 +1,5 @@
-// src/modules/receipts/pdfGenerator.ts
 import { PDFDocument, rgb, StandardFonts, RGB } from 'pdf-lib';
 import QRCode from 'qrcode';
-import fs from 'fs';
-import path from 'path';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -52,8 +49,9 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
   const fontBold    = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // ── Load Devanagari font for Hindi text ───────────────────────────────────────
-  const fontPath = path.join(process.cwd(), 'public', 'fonts', 'aparajbi.ttf');
-  const fontBytes = fs.readFileSync(fontPath);
+  const fontUrl = `${process.env.NEXT_PUBLIC_APP_URL}/fonts/aparajbi.ttf`;
+  const fontResponse = await fetch(fontUrl);
+  const fontBytes = await fontResponse.arrayBuffer();
   const hindiFont = await pdfDoc.embedFont(fontBytes);
 
   const accent = data.branding?.themeColor ? hexToRgb(data.branding.themeColor) : ORANGE;
