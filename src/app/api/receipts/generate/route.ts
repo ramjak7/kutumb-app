@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
+  console.log('=== RECEIPT GENERATE START ===');
+  console.log('User ID type:', typeof user?.id, user?.id);
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
