@@ -11,6 +11,7 @@ const nextConfig = withPWA({
   reactStrictMode: true,
   reactCompiler: true,
   turbopack: {},
+  transpilePackages: ['@pdf-lib/fontkit'],
 });
 
 module.exports = nextConfig;
