@@ -99,10 +99,13 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Uint8Array>
     page.drawText(labelHi, { 
       x: col1Hi, y, size: 9, font: hindiFont, color: MUTED 
     });
-    // Value
+    // Value - use Hindi font if contains Unicode (₹, Devanagari, etc.)
+    const hasUnicode = /[^\x00-\x7F]/.test(value);
+    const valueFont = hasUnicode ? hindiFont : (bold ? fontBold : fontRegular);
+
     page.drawText(value, { 
       x: col2, y, size: 10,
-      font: bold ? fontBold : fontRegular, 
+      font: valueFont,
       color: DARK 
     });
     y -= lineH;
