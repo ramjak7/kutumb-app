@@ -1,3 +1,4 @@
+import 'regenerator-runtime/runtime';
 import { PDFDocument, rgb, StandardFonts, RGB } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import QRCode from 'qrcode';
