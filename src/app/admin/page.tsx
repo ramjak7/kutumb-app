@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUser } from '@/modules/admin/authService';
 import { supabase } from '@/config/supabaseClient';
@@ -44,8 +44,8 @@ export default function AdminDashboardHome() {
         return;
       }
 
-      if (data.role !== 'admin') {
-        setError('Not authorized (role != admin)');
+      if (data.role !== 'admin' && data.role !== 'superadmin' && data.role !== 'treasurer') {
+        setError('Not authorized (role must be admin, superadmin, or treasurer)');
         setLoading(false);
         setTimeout(() => router.replace('/login'), 1200);
         return;
