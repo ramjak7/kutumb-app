@@ -15,19 +15,36 @@ export interface Donation {
   transaction_number: string | null;
   donor_details: Record<string, unknown>;
   verified: boolean;
+  verified_by: string | null;           // ← ADD
+  verified_at: string | null;           // ← ADD
+  is_reversal: boolean;                 // ← ADD
+  reversal_reason: string | null;       // ← ADD
+  reverses_id: string | null;           // ← ADD
+  category: string | null;              // ← ADD
   hash: string;
   created_at: string;
   festival_id: string | null;
+  user_id: string | null;               // ← ADD
 }
 
 export interface Expense {
   id: string;
   amount: number;
+  description: string | null;           // ← ADD
+  category: string | null;              // ← ADD
+  vendor: string | null;                // ← ADD
+  payment_mode: string | null;          // ← ADD
   expense_details: Record<string, unknown>;
   verified: boolean;
+  verified_by: string | null;           // ← ADD
+  verified_at: string | null;           // ← ADD
+  is_reversal: boolean;                 // ← ADD
+  reversal_reason: string | null;       // ← ADD
+  reverses_id: string | null;           // ← ADD
   hash: string;
   created_at: string;
   festival_id: string | null;
+  user_id: string | null;               // ← ADD
 }
 
 export interface Receipt {
@@ -112,7 +129,8 @@ export async function reversalEntry(
 export function donationsToCSV(donations: Donation[]): string {
   const headers = [
     'Receipt#', 'Date', 'Donor Name', 'Amount (INR)', 'Payment Mode',
-    'Transaction #', 'Phone', 'Email', 'PAN', 'Address', 'Verified', 'Hash'
+    'Transaction #', 'Phone', 'Email', 'PAN', 'Address', 'Category',
+    'Verified', 'Verified By', 'Verified At', 'Is Reversal', 'Reversal Reason', 'Hash'
   ];
   const escape = (v: unknown) => {
     const s = v == null ? '' : String(v);
@@ -130,14 +148,22 @@ export function donationsToCSV(donations: Donation[]): string {
     escape(d.donor_email ?? ''),
     escape(d.donor_pan ?? ''),
     escape(d.donor_address ?? ''),
+    escape(d.category ?? ''),
     escape(d.verified ? 'Yes' : 'No'),
+    escape(d.verified_by ?? ''),
+    escape(d.verified_at ? new Date(d.verified_at).toLocaleDateString('en-IN') : ''),
+    escape(d.is_reversal ? 'Yes' : 'No'),
+    escape(d.reversal_reason ?? ''),
     escape(d.hash),
   ].join(','));
   return [headers.join(','), ...rows].join('\n');
 }
 
 export function expensesToCSV(expenses: Expense[]): string {
-  const headers = ['Date', 'Description', 'Category', 'Amount (INR)', 'Verified', 'Hash'];
+  const headers = [
+    'Date', 'Description', 'Category', 'Vendor', 'Amount (INR)', 'Payment Mode',
+    'Verified', 'Verified By', 'Verified At', 'Is Reversal', 'Reversal Reason', 'Hash'
+  ];
   const escape = (v: unknown) => {
     const s = v == null ? '' : String(v);
     return s.includes(',') || s.includes('"') || s.includes('\n')
@@ -145,10 +171,16 @@ export function expensesToCSV(expenses: Expense[]): string {
   };
   const rows = expenses.map(e => [
     escape(new Date(e.created_at).toLocaleDateString('en-IN')),
-    escape((e.expense_details as Record<string,unknown>)?.description ?? ''),
-    escape((e.expense_details as Record<string,unknown>)?.category ?? ''),
+    escape(e.description ?? ''),
+    escape(e.category ?? ''),
+    escape(e.vendor ?? ''),
     escape(e.amount),
+    escape(e.payment_mode ?? ''),
     escape(e.verified ? 'Yes' : 'No'),
+    escape(e.verified_by ?? ''),
+    escape(e.verified_at ? new Date(e.verified_at).toLocaleDateString('en-IN') : ''),
+    escape(e.is_reversal ? 'Yes' : 'No'),
+    escape(e.reversal_reason ?? ''),
     escape(e.hash),
   ].join(','));
   return [headers.join(','), ...rows].join('\n');

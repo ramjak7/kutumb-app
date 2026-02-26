@@ -14,8 +14,15 @@ export default function DonationLedgerPage() {
   const [search, setSearch]         = useState('');
   const [exporting, setExporting]   = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [verifying, setVerifying]   = useState<string | null>(null);
+  const [reversing, setReversing]   = useState<string | null>(null);
+  const [reverseForm, setReverseForm] = useState<{
+    donationId: string;
+    reason: string;
+    newAmount: string;
+    newDonorName: string;
+  } | null>(null);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchDonations = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -31,7 +38,6 @@ export default function DonationLedgerPage() {
 
   useEffect(() => { fetchDonations(); }, [fetchDonations]);
 
-  // ── Sort & filter ──────────────────────────────────────────────────────────
   const filtered = donations
     .filter(d => {
       const q = search.toLowerCase();
@@ -53,7 +59,6 @@ export default function DonationLedgerPage() {
 
   const total = filtered.reduce((sum, d) => sum + Number(d.amount), 0);
 
-  // ── CSV export via API (server-side, auth-safe) ────────────────────────────
   async function exportCSV() {
     setExporting(true);
     try {
@@ -73,12 +78,9 @@ export default function DonationLedgerPage() {
     }
   }
 
-  // ── Receipt PDF download ───────────────────────────────────────────────────
   async function downloadReceipt(donationId: string) {
-    // Find associated receipt for this donation via API
     setDownloading(donationId);
     try {
-      // We fetch the receipt list to match donation → receipt
       const res = await fetch(`/api/receipts/find?donationId=${donationId}`);
       if (!res.ok) {
         alert('No receipt found for this donation. Generate one first.');
@@ -101,7 +103,49 @@ export default function DonationLedgerPage() {
     }
   }
 
-  // ── Sort toggle ────────────────────────────────────────────────────────────
+  async function verifyDonation(donationId: string) {
+    if (!confirm('Verify this donation? This action is irreversible.')) return;
+    setVerifying(donationId);
+    try {
+      const res = await fetch('/api/donations/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ donationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Verification failed');
+      alert('Donation verified successfully!');
+      fetchDonations();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setVerifying(null);
+    }
+  }
+
+  async function submitReversal() {
+    if (!reverseForm) return;
+    try {
+      const res = await fetch('/api/donations/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          donationId: reverseForm.donationId,
+          reason: reverseForm.reason,
+          newAmount: reverseForm.newAmount ? Number(reverseForm.newAmount) : null,
+          newDonorName: reverseForm.newDonorName || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reversal failed');
+      alert('Reversal created successfully!');
+      setReverseForm(null);
+      fetchDonations();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc(p => !p);
     else { setSortKey(key); setSortAsc(false); }
@@ -112,7 +156,6 @@ export default function DonationLedgerPage() {
     return <span className="ml-1">{sortAsc ? '↑' : '↓'}</span>;
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) return <div className="p-8 text-orange-700 animate-pulse">Loading donations…</div>;
   if (error)   return (
     <div className="p-8">
@@ -123,50 +166,73 @@ export default function DonationLedgerPage() {
 
   return (
     <div>
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-2xl font-bold text-orange-700">Donation Ledger</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {filtered.length} record{filtered.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
-            Total: <span className="font-semibold text-orange-700">
-              ₹{total.toLocaleString('en-IN')}
-            </span>
+            {filtered.length} record{filtered.length !== 1 ? 's' : ''} · 
+            Total: <span className="font-semibold text-orange-700">₹{total.toLocaleString('en-IN')}</span>
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <a
-            href="/admin/receipts/new"
-            className="px-4 py-2 bg-orange-600 text-white rounded shadow hover:bg-orange-700 transition text-sm font-medium"
-          >
+          <a href="/admin/receipts/new" className="px-4 py-2 bg-orange-600 text-white rounded shadow hover:bg-orange-700 transition text-sm font-medium">
             + New Receipt
           </a>
-          <button
-            onClick={exportCSV}
-            disabled={exporting}
-            className="px-4 py-2 bg-white border border-orange-300 text-orange-700 rounded shadow hover:bg-orange-50 transition text-sm font-medium disabled:opacity-50"
-          >
+          <button onClick={exportCSV} disabled={exporting} className="px-4 py-2 bg-white border border-orange-300 text-orange-700 rounded shadow hover:bg-orange-50 transition text-sm font-medium disabled:opacity-50">
             {exporting ? 'Exporting…' : '⬇ Export CSV'}
           </button>
         </div>
       </div>
 
-      {/* ── Search ── */}
+      {/* Search */}
       <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search by name, email, PAN, amount…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+        <input type="text" placeholder="Search by name, email, PAN, amount…" value={search} onChange={e => setSearch(e.target.value)}
           className="w-full max-w-sm border border-orange-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
         />
       </div>
 
-      {/* ── Table ── */}
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded shadow p-10 text-center text-gray-400">
-          No donations found.
+      {/* Reversal Modal */}
+      {reverseForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-orange-700 mb-4">Reverse Donation</h2>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Reversal *</label>
+                <textarea value={reverseForm.reason} onChange={e => setReverseForm({...reverseForm, reason: e.target.value})} rows={3}
+                  className="w-full border border-orange-200 rounded px-3 py-2 text-sm" placeholder="Explain why this is being reversed"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Corrected Amount (optional)</label>
+                <input type="number" value={reverseForm.newAmount} onChange={e => setReverseForm({...reverseForm, newAmount: e.target.value})}
+                  className="w-full border border-orange-200 rounded px-3 py-2 text-sm" placeholder="Leave empty to just cancel"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Corrected Donor Name (optional)</label>
+                <input type="text" value={reverseForm.newDonorName} onChange={e => setReverseForm({...reverseForm, newDonorName: e.target.value})}
+                  className="w-full border border-orange-200 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button onClick={submitReversal} disabled={!reverseForm.reason.trim()}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50">
+                  Create Reversal
+                </button>
+                <button onClick={() => setReverseForm(null)} className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded shadow p-10 text-center text-gray-400">No donations found.</div>
       ) : (
         <div className="bg-white rounded shadow overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -181,61 +247,73 @@ export default function DonationLedgerPage() {
                 <th className="py-3 px-4 text-orange-600 font-semibold cursor-pointer select-none" onClick={() => toggleSort('amount')}>
                   Amount <SortIcon k="amount" />
                 </th>
-                <th className="py-3 px-4 text-orange-600 font-semibold">Mode</th>
-                <th className="py-3 px-4 text-orange-600 font-semibold">PAN</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Type</th>
                 <th className="py-3 px-4 text-orange-600 font-semibold">Verified</th>
-                <th className="py-3 px-4 text-orange-600 font-semibold">Hash</th>
-                <th className="py-3 px-4 text-orange-600 font-semibold">Receipt</th>
+                <th className="py-3 px-4 text-orange-600 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((d, i) => (
-                <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-orange-50/30'}>
-                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">
-                    {new Date(d.created_at).toLocaleDateString('en-IN')}
-                  </td>
-                  <td className="py-2 px-4">
-                    <div className="font-medium text-gray-800">{d.donor_name ?? '—'}</div>
-                    {d.donor_email && (
-                      <div className="text-xs text-gray-400">{d.donor_email}</div>
-                    )}
-                  </td>
-                  <td className="py-2 px-4 font-semibold text-orange-700 whitespace-nowrap">
-                    ₹{Number(d.amount).toLocaleString('en-IN')}
-                  </td>
-                  <td className="py-2 px-4 text-gray-600 capitalize">
-                    {d.payment_mode ?? '—'}
-                  </td>
-                  <td className="py-2 px-4 font-mono text-xs text-gray-500">
-                    {d.donor_pan ?? '—'}
-                  </td>
-                  <td className="py-2 px-4">
-                    {d.verified
-                      ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Verified</span>
-                      : <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pending</span>
-                    }
-                  </td>
-                  <td className="py-2 px-4 font-mono text-xs text-gray-400 max-w-[80px] truncate" title={d.hash}>
-                    {d.hash.slice(0, 10)}…
-                  </td>
-                  <td className="py-2 px-4">
-                    <button
-                      onClick={() => downloadReceipt(d.id)}
-                      disabled={downloading === d.id}
-                      className="px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition text-xs font-medium disabled:opacity-50"
-                    >
-                      {downloading === d.id ? '…' : '⬇ PDF'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((d, i) => {
+                const isReversal = (d as any).is_reversal;
+                const amountClass = Number(d.amount) < 0 ? 'text-red-700' : 'text-orange-700';
+                return (
+                  <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-orange-50/30'}>
+                    <td className="py-2 px-4 text-gray-600 whitespace-nowrap">
+                      {new Date(d.created_at).toLocaleDateString('en-IN')}
+                    </td>
+                    <td className="py-2 px-4">
+                      <div className="font-medium text-gray-800">{d.donor_name ?? '—'}</div>
+                      {d.donor_email && <div className="text-xs text-gray-400">{d.donor_email}</div>}
+                    </td>
+                    <td className={`py-2 px-4 font-semibold ${amountClass} whitespace-nowrap`}>
+                      ₹{Number(d.amount).toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-2 px-4 text-xs">
+                      {isReversal ? (
+                        <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold">Reversal</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">Original</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-4">
+                      {d.verified ? (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Verified</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pending</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-4">
+                      <div className="flex gap-2">
+                        {!d.verified && !isReversal && (
+                          <button onClick={() => verifyDonation(d.id)} disabled={verifying === d.id}
+                            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition text-xs font-medium disabled:opacity-50">
+                            {verifying === d.id ? '...' : 'Verify'}
+                          </button>
+                        )}
+                        {d.verified && !isReversal && (
+                          <button onClick={() => setReverseForm({ donationId: d.id, reason: '', newAmount: '', newDonorName: '' })}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-xs font-medium">
+                            Reverse
+                          </button>
+                        )}
+                        {!isReversal && (
+                          <button onClick={() => downloadReceipt(d.id)} disabled={downloading === d.id}
+                            className="px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition text-xs font-medium disabled:opacity-50">
+                            {downloading === d.id ? '…' : '⬇ PDF'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
       <p className="text-xs text-gray-400 mt-3">
-        * All records are append-only and hash-protected. No edits or deletes are permitted.
+        * All records are append-only and hash-protected. Verified entries cannot be edited — only reversed with reason.
       </p>
     </div>
   );
