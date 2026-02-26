@@ -148,7 +148,7 @@ export default function ExpenseLedgerPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <a href="/admin/expenses/new" className="px-4 py-2 bg-orange-600 text-white rounded shadow hover:bg-orange-700 transition text-sm font-medium">
+          <a href="/admin/ledgers/expenses/new" className="px-4 py-2 bg-orange-600 text-white rounded shadow hover:bg-orange-700 transition text-sm font-medium">
             + New Expense
           </a>
           <button onClick={exportCSV} disabled={exporting}
