@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { requireAdmin } from "@/modules/admin/adminGuard";
 import { getUser } from '@/modules/admin/authService';
 import { supabase } from '@/config/supabaseClient';
+import { getDonations, getExpenses, getReceipts } from '@/modules/ledgers/ledgerService';
 
 export default function AdminDashboardHome() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function AdminDashboardHome() {
   const [error, setError] = useState<string | null>(null);
   const [authDebug, setAuthDebug] = useState<any>(null);
   const [dbDebug, setDbDebug] = useState<any>(null);
+  const [stats, setStats] = useState({ donations: 0, expenses: 0, receipts: 0 });
 
   useEffect(() => {
     async function checkAuth() {
@@ -57,6 +58,40 @@ export default function AdminDashboardHome() {
     checkAuth();
   }, [router]);
 
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [donations, expenses, receipts] = await Promise.all([
+          getDonations(),
+          getExpenses(),
+          getReceipts(),
+        ]);
+        
+        const totalDonations = donations
+          .filter(d => !d.is_reversal)
+          .reduce((sum, d) => sum + Number(d.amount), 0);
+        
+        const totalExpenses = expenses
+          .filter(e => !e.is_reversal)
+          .reduce((sum, e) => sum + Number(e.amount), 0);
+        
+        const receiptsCount = receipts.filter(r => !r.voided).length;
+        
+        setStats({
+          donations: totalDonations,
+          expenses: totalExpenses,
+          receipts: receiptsCount,
+        });
+      } catch (e) {
+        console.error('Failed to fetch stats', e);
+      }
+    }
+    
+    if (admin) {
+      fetchStats();
+    }
+  }, [admin]);
+
   if (loading) {
     return (
       <div className="p-8 text-orange-700">
@@ -94,15 +129,15 @@ export default function AdminDashboardHome() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
         <div className="bg-white rounded shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Donations</h2>
-          <p className="text-2xl text-orange-600 font-bold">₹0</p>
+          <p className="text-2xl text-orange-600 font-bold">₹ {stats.donations.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-white rounded shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Expenses</h2>
-          <p className="text-2xl text-orange-600 font-bold">₹0</p>
+          <p className="text-2xl text-orange-600 font-bold">₹ {stats.expenses.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-white rounded shadow p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Receipts Issued</h2>
-          <p className="text-2xl text-orange-600 font-bold">0</p>
+          <p className="text-2xl text-orange-600 font-bold">{stats.receipts}</p>
         </div>
       </div>
     </div>
